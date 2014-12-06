@@ -348,6 +348,14 @@ var _ = {};
   // of that string. For example, _.sortBy(people, 'name') should sort
   // an array of people by their name.
   _.sortBy = function(collection, iterator) {
+    var result = collection.slice();
+    // Following code does not work in chrome :(
+    if (typeof iterator === "function") {
+      return result.sort(function(a, b) {return iterator(a) - iterator(b)});
+    }
+    else {
+      return result.sort(function(a, b) {return a[iterator] - b[iterator]});
+    }
   };
 
   // Zip together two or more arrays with elements of the same index
@@ -356,6 +364,20 @@ var _ = {};
   // Example:
   // _.zip(['a','b','c','d'], [1,2,3]) returns [['a',1], ['b',2], ['c',3], ['d',undefined]]
   _.zip = function() {
+    var result = [];
+    var largestIndex = 0;
+    for (var i = 0; i < arguments.length; i++) {
+      if (arguments[i].length > largestIndex) {
+        largestIndex = arguments[i].length;
+      }
+    }
+    for (var i = 0; i < largestIndex; i++) {
+      result[i] = [];
+      for (var j = 0; j < largestIndex; j++) {
+        result[i].push(arguments[j][i]);
+      }
+    }
+    return result;
   };
 
   // Takes a multidimensional array and converts it to a one-dimensional array.
@@ -363,16 +385,50 @@ var _ = {};
   //
   // Hint: Use Array.isArray to check if something is an array
   _.flatten = function(nestedArray, result) {
+    var result = [];
+    var removeArray = function(array) {
+      for (var i = 0; i < array.length; i++) {
+        if (Array.isArray(array[i])) {
+          removeArray(array[i]);
+        } else {
+          result.push(array[i]);
+        }
+      }
+    };
+    removeArray(nestedArray);
+    return result;
   };
 
   // Takes an arbitrary number of arrays and produces an array that contains
   // every item shared between all the passed-in arrays.
   _.intersection = function() {
+    var results = [];
+    for (var i = 0; i < arguments[0].length; i++) {
+      for (var j = 1; j < arguments.length; j++) {
+        if (_.contains(arguments[j], arguments[0][i])) {
+          results.push(arguments[0][i]);
+        }
+      }
+    }
+    return results;
   };
 
   // Take the difference between one array and a number of other arrays.
   // Only the elements present in just the first array will remain.
   _.difference = function(array) {
+    var results = [];
+    for (var i = 0; i < arguments[0].length; i++) {
+      var unique = true;
+      for (var j = 1; j < arguments.length; j++) {
+        if (_.contains(arguments[j], arguments[0][i])) {
+          unique = false;
+        }
+      }
+      if (unique) {
+        results.push(arguments[0][i]);
+      }
+    }
+    return results;
   };
 
 
@@ -386,6 +442,40 @@ var _ = {};
   //
   // See the Underbar readme for details.
   _.throttle = function(func, wait) {
+    var ready = true;
+    var scheduledCall = false;
+    var resetVar, currentResult, previous, current, timeLeft;
+    var reset = function() {
+      resetVar = setTimeout(function() {
+          ready = true;
+        }, wait);
+    };
+    var clearTimer = function() {
+      clearTimeout(resetVar);
+    };
+    return function() {
+      if (ready) {
+        ready = false;
+        previous = Date.now();
+        reset();
+        currentResult = func();
+        return currentResult;
+      } else if (!scheduledCall) {
+        scheduledCall = true;
+        current = Date.now();
+        timeLeft = wait - (current - previous);
+        clearTimer();
+        _.delay(function() {
+          scheduledCall = false;
+          previous = Date.now();
+          reset();
+          currentResult = func();
+        }, timeLeft);
+        return currentResult;
+      } else {
+        return currentResult;
+      }
+    }
   };
 
 }).call(this);
